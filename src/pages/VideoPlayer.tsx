@@ -432,9 +432,8 @@ const VideoPlayer = () => {
         hlsInstanceRef.current = null;
       }
 
-      const isNative = !!(window as any).Capacitor?.isNativePlatform?.();
-      const finalStreamUrl = isNative ? streamUrl : getProxiedUrl(streamUrl, result.data.referer);
-      const finalSubUrl = defaultSub ? (isNative ? defaultSub.file : getProxiedUrl(defaultSub.file, result.data.referer)) : '';
+      const finalStreamUrl = getProxiedUrl(streamUrl, result.data.referer);
+      const finalSubUrl = defaultSub ? getProxiedUrl(defaultSub.file, result.data.referer) : '';
 
       const art = new Artplayer({
         container: playerContainerRef.current!,
@@ -482,18 +481,6 @@ const VideoPlayer = () => {
                     const hls = new Hls({
                         enableWorker: true,
                         lowLatencyMode: false,
-                        xhrSetup: function(xhr: XMLHttpRequest) {
-                          if (result?.data?.referer) {
-                            const ref = result.data.referer;
-                            const orig = ref.endsWith('/') ? ref.slice(0, -1) : ref;
-                            try {
-                              xhr.setRequestHeader('Referer', ref);
-                              xhr.setRequestHeader('Origin', orig);
-                            } catch (e) {
-                              // Browser may prevent setting unsafe headers, but safe to ignore as it works on Native Capacitor
-                            }
-                          }
-                        },
                         // Start playback quickly with small initial buffer
                         maxBufferLength: 30,
                         maxMaxBufferLength: 60,
@@ -860,8 +847,7 @@ const VideoPlayer = () => {
         if (track) {
           setCurrentSubtitle(track.label);
           if (art.subtitle) {
-            const isNative = !!(window as any).Capacitor?.isNativePlatform?.();
-            art.subtitle.url = isNative ? track.file : getProxiedUrl(track.file, streamData?.referer || '');
+            art.subtitle.url = getProxiedUrl(track.file, streamData?.referer || '');
             art.subtitle.show = true;
           }
         } else {
