@@ -46,6 +46,9 @@ export default async function fetchHandler(request: Request) {
     } else if (targetUrlObj.hostname.includes('mewstream.buzz')) {
        headers['Referer'] = 'https://megaplay.buzz/';
        headers['Origin'] = 'https://megaplay.buzz';
+    } else if (targetUrlObj.hostname.includes('s2.cinewave2.site')) {
+       headers['Referer'] = 'https://megaplay.buzz/';
+       headers['Origin'] = 'https://megaplay.buzz';
     }
 
     // Allow manual override via query parameters
@@ -105,8 +108,12 @@ export default async function fetchHandler(request: Request) {
        const baseUrl = finalUrlObj.origin + finalUrlObj.pathname.substring(0, finalUrlObj.pathname.lastIndexOf('/') + 1);
        const originalQuery = finalUrlObj.search;
        
-       // Use the worker's own URL as proxy base
-       const proxySelfUrl = `${urlPattern.origin}/api/stream?url=`;
+       // Use the worker's own URL as proxy base, or custom Cloudflare Worker proxy if specified
+       let proxySelfUrl = `${urlPattern.origin}/api/stream?url=`;
+       const cfProxy = process.env.CLOUDFLARE_PROXY_URL;
+       if (cfProxy) {
+         proxySelfUrl = cfProxy.includes('?') ? `${cfProxy}&url=` : `${cfProxy}?url=`;
+       }
        
        const lines = body.split(/\r?\n/);
        const rewrittenLines = lines.map(line => {
@@ -127,13 +134,7 @@ export default async function fetchHandler(request: Request) {
              }
            }
            
-           let newUrl = "";
-            const lowerSeg = absoluteSegmentUrl.toLowerCase();
-            const shouldProxySegment = lowerSeg.includes('.m3u8') || (!lowerSeg.includes('.ts') && !lowerSeg.includes('.mp4') && !lowerSeg.includes('.m4s') && !lowerSeg.includes('.m2ts'));
-            if (!shouldProxySegment) {
-              return absoluteSegmentUrl;
-            }
-            newUrl = proxySelfUrl + encodeURIComponent(absoluteSegmentUrl);
+           let newUrl = proxySelfUrl + encodeURIComponent(absoluteSegmentUrl);
            if (headers['Referer']) newUrl += `&referer=${encodeURIComponent(headers['Referer'])}`;
            if (headers['Origin']) newUrl += `&origin=${encodeURIComponent(headers['Origin'])}`;
            
@@ -150,13 +151,7 @@ export default async function fetchHandler(request: Request) {
                   absoluteUri = baseUrl + absoluteUri;
                }
              }
-             let newUri = "";
-              const lowerUri = absoluteUri.toLowerCase();
-              const shouldProxyUri = lowerUri.includes('.m3u8') || (!lowerUri.includes('.ts') && !lowerUri.includes('.mp4') && !lowerUri.includes('.m4s') && !lowerUri.includes('.m2ts'));
-              if (!shouldProxyUri) {
-                return `URI="${absoluteUri}"`;
-              }
-              newUri = proxySelfUrl + encodeURIComponent(absoluteUri);
+             let newUri = proxySelfUrl + encodeURIComponent(absoluteUri);
              if (headers['Referer']) newUri += `&referer=${encodeURIComponent(headers['Referer'])}`;
              if (headers['Origin']) newUri += `&origin=${encodeURIComponent(headers['Origin'])}`;
              
