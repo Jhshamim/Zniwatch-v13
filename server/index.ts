@@ -17,15 +17,35 @@ app.get('/api/stream', async (req, res) => {
   }
 
   try {
+    const targetUrlObj = new URL(targetUrl);
     const headers: Record<string, string> = {
       'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     };
+
+    // Auto-detect headers for specific domains
+    if (targetUrlObj.hostname.includes('fxpy7.watching.onl') || targetUrlObj.hostname.includes('lookaround.click')) {
+       headers['Referer'] = 'https://vidwish.live/';
+       headers['Origin'] = 'https://vidwish.live';
+    } else if (targetUrlObj.hostname.includes('streamzone1.site')) {
+       headers['Referer'] = 'https://megaplay.buzz/';
+       headers['Origin'] = 'https://megaplay.buzz';
+    } else if (targetUrlObj.hostname.includes('mewstream.buzz')) {
+       headers['Referer'] = 'https://megaplay.buzz/';
+       headers['Origin'] = 'https://megaplay.buzz';
+    } else if (targetUrlObj.hostname.includes('s2.cinewave2.site')) {
+       headers['Referer'] = 'https://megaplay.buzz/';
+       headers['Origin'] = 'https://megaplay.buzz';
+    }
 
     if (referer) {
       headers['Referer'] = referer;
     }
     if (origin) {
       headers['Origin'] = origin;
+    }
+
+    if (headers['Origin']) {
+       headers['Origin'] = headers['Origin'].replace(/\/$/, "");
     }
 
     const response = await fetch(targetUrl, { headers });
@@ -52,6 +72,12 @@ app.get('/api/stream', async (req, res) => {
       const targetUrlObj = new URL(targetUrl);
       const baseUrl = targetUrlObj.origin + targetUrlObj.pathname.substring(0, targetUrlObj.pathname.lastIndexOf('/') + 1);
       
+      let proxySelfUrl = `/api/stream?url=`;
+      const cfProxy = process.env.CLOUDFLARE_PROXY_URL;
+      if (cfProxy) {
+        proxySelfUrl = cfProxy.includes('?') ? `${cfProxy}&url=` : `${cfProxy}?url=`;
+      }
+
       const lines = text.split(/\r?\n/);
       const rewrittenLines = lines.map(line => {
         const trimmed = line.trim();
@@ -68,18 +94,10 @@ app.get('/api/stream', async (req, res) => {
             }
           }
 
-          const lowerSeg = absoluteUrl.toLowerCase();
-          // DO NOT proxy heavy media segments (.ts, .mp4, .m4s, .m2ts). Fetching directly from CDN lowers latency and buffering!
-          const shouldProxySegment = lowerSeg.includes('.m3u8') || (!lowerSeg.includes('.ts') && !lowerSeg.includes('.mp4') && !lowerSeg.includes('.m4s') && !lowerSeg.includes('.m2ts'));
-
-          if (shouldProxySegment) {
-            let newUrl = `/api/stream?url=${encodeURIComponent(absoluteUrl)}`;
-            if (referer) newUrl += `&referer=${encodeURIComponent(referer)}`;
-            if (origin) newUrl += `&origin=${encodeURIComponent(origin)}`;
-            return newUrl;
-          } else {
-            return absoluteUrl;
-          }
+          let newUrl = proxySelfUrl + encodeURIComponent(absoluteUrl);
+          if (headers['Referer']) newUrl += `&referer=${encodeURIComponent(headers['Referer'])}`;
+          if (headers['Origin']) newUrl += `&origin=${encodeURIComponent(headers['Origin'])}`;
+          return newUrl;
         }
 
         // Handle URI attribute in lines like #EXT-X-KEY, #EXT-X-MAP
@@ -94,17 +112,10 @@ app.get('/api/stream', async (req, res) => {
               }
             }
 
-            const lowerUri = absoluteUri.toLowerCase();
-            const shouldProxyUri = lowerUri.includes('.m3u8') || (!lowerUri.includes('.ts') && !lowerUri.includes('.mp4') && !lowerUri.includes('.m4s') && !lowerUri.includes('.m2ts'));
-
-            if (shouldProxyUri) {
-              let newUri = `/api/stream?url=${encodeURIComponent(absoluteUri)}`;
-              if (referer) newUri += `&referer=${encodeURIComponent(referer)}`;
-              if (origin) newUri += `&origin=${encodeURIComponent(origin)}`;
-              return `URI="${newUri}"`;
-            } else {
-              return `URI="${absoluteUri}"`;
-            }
+            let newUri = proxySelfUrl + encodeURIComponent(absoluteUri);
+            if (headers['Referer']) newUri += `&referer=${encodeURIComponent(headers['Referer'])}`;
+            if (headers['Origin']) newUri += `&origin=${encodeURIComponent(headers['Origin'])}`;
+            return `URI="${newUri}"`;
           });
         }
 
