@@ -22,6 +22,10 @@ const handleProxy = async (req: express.Request, res: express.Response) => {
       'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     };
 
+    if (req.headers['range']) {
+      headers['Range'] = req.headers['range'] as string;
+    }
+
     // Auto-detect headers for specific domains
     if (targetUrlObj.hostname.includes('fxpy7.watching.onl') || targetUrlObj.hostname.includes('lookaround.click')) {
        headers['Referer'] = 'https://vidwish.live/';
@@ -126,6 +130,33 @@ const handleProxy = async (req: express.Request, res: express.Response) => {
     }
 
     // Otherwise, stream the raw response (TS segment / Subtitle / Key)
+    res.status(response.status);
+
+    const contentLength = response.headers.get('content-length');
+    if (contentLength) {
+      res.setHeader('Content-Length', contentLength);
+    }
+    const contentRange = response.headers.get('content-range');
+    if (contentRange) {
+      res.setHeader('Content-Range', contentRange);
+    }
+    const acceptRanges = response.headers.get('accept-ranges');
+    if (acceptRanges) {
+      res.setHeader('Accept-Ranges', acceptRanges);
+    }
+
+    const isSegment = targetUrlObj.pathname.toLowerCase().endsWith('.ts') || 
+                      targetUrlObj.pathname.toLowerCase().endsWith('.mp4') || 
+                      targetUrlObj.pathname.toLowerCase().endsWith('.m4s') || 
+                      targetUrlObj.pathname.toLowerCase().endsWith('.m2ts') ||
+                      targetUrl.toLowerCase().includes('.ts') ||
+                      targetUrl.toLowerCase().includes('.mp4');
+    if (isSegment) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable');
+    } else {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    }
+
     if (response.body) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       Readable.fromWeb(response.body as any).pipe(res);
