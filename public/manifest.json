@@ -1,0 +1,23 @@
+{
+  "short_name": "Zniwatch",
+  "name": "Zniwatch - Watch Anime Free in HD",
+  "description": "Zniwatch is your ultimate anime streaming platform. Discover trending anime, track your watch history, and enjoy free HD stream playback with multi-subtitles.",
+  "icons": [
+    {
+      "src": "/zniwatch_logo.jpg",
+      "type": "image/jpeg",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/zniwatch_logo.jpg",
+      "type": "image/jpeg",
+      "sizes": "192x192"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#000000",
+  "theme_color": "#0a0a0c",
+  "display": "standalone",
+  "orientation": "portrait"
+}
